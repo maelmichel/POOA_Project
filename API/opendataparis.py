@@ -89,7 +89,7 @@ class Client_Autolib(Client_Lib):
             cars_counter_utilib_1_4 = message[i]['fields']['cars_counter_utilib_1.4']
             subscription_status = message[i]['fields']['subscription_status']
             slots = message[i]['fields']['slots']
-            id = message[i]['fields']['id']
+            identifiant = message[i]['fields']['id']
             address = message[i]['fields']['address']
             cars_counter_utilib = message[i]['fields']['cars_counter_utilib']
             liste_stations.append(Station_Autolib(status,city,kind,dist,station_type,charging_status,rental_status,cars_counter_bluecar,cars,public_name,geo_point,charge_slots,postal_code,cars_counter_utilib_1_4,subscription_status,slots,id,address,cars_counter_utilib))
