@@ -1,6 +1,5 @@
 import requests
 import datetime
-import googlemaps
 
 class PasLeBonFormatDeDateError(Exception):
     pass
