@@ -123,5 +123,7 @@ if __name__ == "__main__":
     print(test.url)
     temp = test.get_temperature('2017-10-28 14:20:00')
     pluie = test.get_pluie(datetime.datetime.now())
+    comment = test.description_temperature(datetime.datetime.now())
     print("résultat temp",temp)
     print("résultat pluie",pluie)
+    print("Commentaire Temps",comment)
