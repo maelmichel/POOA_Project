@@ -38,7 +38,7 @@ class Meteo():
         elif code_requete == 509:
             raise QuotatRequeteError
         else:
-            raise PasDeConnectionError
+            raise ConnectionError
 
     @property
     def url(self):
