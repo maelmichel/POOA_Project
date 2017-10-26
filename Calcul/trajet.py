@@ -7,8 +7,10 @@ import opendataparis
 
 
 
-class Origine_Et_Destination:
+class _Origine_Et_Destination:
+
     """Plusieurs classes ayant besoin de gérer l'origine et la destination d'un trajet, cette classe rassemble les méthodes communes qu'elles auront en héritant de celle-ci."""
+
     api_key = "AIzaSyBZnbh42NFcXC-3JWSX1um84G8RZ9rTmiA"
     client_google = googlemaps.Client(key=api_key)
 
@@ -24,66 +26,98 @@ class Origine_Et_Destination:
     def _get_origine(self):
         return self._origine
     def _set_origine(self, origine):
-        self.calculer(origine, self._destination, self._transport)
+        if not isinstance(origine,str):
+            raise TypeError("Le lieu d'origine doit être une chaîne de caractères.")
+        try:
+            result_api_origine = googlemaps.Client.geocode(_Origine_Et_Destination.client_google, origine)
+            result_api_origine[0]['formatted_address']
+            result_api_origine[0]['geometry']['location']['lat']
+            result_api_origine[0]['geometry']['location']['lng']
+        except googlemaps.exceptions.TransportError:
+            raise googlemaps.exceptions.TransportError("Connexion avec l'API Google impossible. Vérifiez votre connexion internet.")
+        except IndexError:
+            raise IndexError("Erreur du traitement par l'API Google. Vérifiez les adresses rentrées.")
+        else:
+            self._origine = result_api_origine[0]['formatted_address']
+            self._coord_origine = (result_api_origine[0]['geometry']['location']['lat'],result_api_origine[0]['geometry']['location']['lng'])
+        if (self._destination!="") & (self._transport!=""):
+            self.calculer()
     origine = property(_get_origine, _set_origine)
 
     def _get_coord_origine(self):
         return self._coord_origine
     def _set_coord_origine(self, coord):
-        result_api = googlemaps.Client.reverse_geocode(Origine_Et_Destination.client_google, coord)
-        # /!\ Penser à gérer les erreurs de l'API
-        self._set_origine(result_api[0]['formatted_address'])
+        if (not isinstance(coord,tuple)) | (len(coord)!=2) | (not isinstance(coord[0],float)) | (not isinstance(coord[0],float)):
+            raise TypeError("Les coordonnées d'origine doivent être une paire de nombres flottants.")
+        try:
+            result_api = googlemaps.Client.reverse_geocode(_Origine_Et_Destination.client_google, coord)
+            self._set_origine(result_api[0]['formatted_address'])
+        except googlemaps.exceptions.TransportError:
+            raise googlemaps.exceptions.TransportError("Connexion avec l'API Google impossible. Vérifiez votre connexion internet.")
+        except IndexError:
+            raise IndexError("Coordonnées non trouvées.")
     coord_origine = property(_get_coord_origine, _set_coord_origine)
 
     def _get_destination(self):
         return self._destination
     def _set_destination(self, destination):
-        self.calculer(self._origine, destination, self._transport)
+        if not isinstance(destination,str):
+            raise TypeError("Le lieu de destination doit être une chaîne de caractères.")
+        try:
+            result_api_destination = googlemaps.Client.geocode(_Origine_Et_Destination.client_google, destination)
+            result_api_destination[0]['formatted_address']
+            result_api_destination[0]['geometry']['location']['lat']
+            result_api_destination[0]['geometry']['location']['lng']
+        except googlemaps.exceptions.TransportError:
+            raise googlemaps.exceptions.TransportError("Connexion avec l'API Google impossible. Vérifiez votre connexion internet.")
+        except IndexError:
+            raise IndexError("Erreur du traitement par l'API Google. Vérifiez les adresses rentrées.")
+        else:
+            self._destination = result_api_destination[0]['formatted_address']
+            self._coord_destination = (result_api_destination[0]['geometry']['location']['lat'],result_api_destination[0]['geometry']['location']['lng'])
+        if (self._origine != "") & (self._transport != ""):
+            self.calculer()
     destination = property(_get_destination, _set_destination)
 
     def _get_coord_destination(self):
         return self._coord_destination
     def _set_coord_destination(self, coord):
-        result_api = googlemaps.Client.reverse_geocode(Origine_Et_Destination.client_google, coord)
-        # /!\ Penser à gérer les erreurs de l'API
-        self._set_destination(result_api[0]['formatted_address'])
+        if (not isinstance(coord,tuple)) | (len(coord)!=2) | (not isinstance(coord[0],float)) | (not isinstance(coord[0],float)):
+            raise TypeError("Les coordonnées de destination doivent être une paire de nombres flottants.")
+        try:
+            result_api = googlemaps.Client.reverse_geocode(_Origine_Et_Destination.client_google, coord)
+            self._set_destination(result_api[0]['formatted_address'])
+        except googlemaps.exceptions.TransportError:
+            raise googlemaps.exceptions.TransportError("Connexion avec l'API Google impossible. Vérifiez votre connexion internet.")
+        except IndexError:
+            raise IndexError("Coordonnées non trouvées.")
     coord_destination = property(_get_coord_destination, _set_coord_destination)
 
     def _get_transport(self):
         return self._transport
     def _set_transport(self, transport):
-        self.calculer(self._origine, self._destination, transport)
+        if not isinstance(transport,str):
+            raise TypeError("Le mode de transport doit être une chaîne de caractères.")
+        if transport not in ["driving","walking","bicycling","transit","velib","autolib"]:
+            raise ValueError("Le mode de transport '" + transport + "' n'est reconnu ni par l'API Google, ni comme un transport velib ou autolib.")
+        self._transport = transport
+        if (self._origine != "") & (self._destination != ""):
+            self.calculer()
     transport = property(_get_transport, _set_transport)
 
     # Méthodes
 
-    def _set_origine_destination_transport(self,origine,destination,transport):
-        """Remplit les points d'origine et de destination ainsi que le mode de transport en s'assurant de respecter les formats adéquates."""
-        result_api_origine = googlemaps.Client.geocode(Origine_Et_Destination.client_google, origine)
-        # /!\ À faire : gérer les erreurs de l'API, en particulier si aucun résultat n'est trouvé
-        self._origine = result_api_origine[0]['formatted_address']
-        self._coord_origine = (result_api_origine[0]['geometry']['location']['lat'],result_api_origine[0]['geometry']['location']['lng'])
-        result_api_destination = googlemaps.Client.geocode(Origine_Et_Destination.client_google, destination)
-        # /!\ À faire : gérer les erreurs de l'API, en particulier si aucun résultat n'est trouvé
-        self._destination = result_api_destination[0]['formatted_address']
-        self._coord_destination = (result_api_destination[0]['geometry']['location']['lat'],result_api_destination[0]['geometry']['location']['lng'])
-        # /!\ Gérer les erreurs pour s'assurer que le transport est bien l'un de ceux compris par google
-        if transport in ["driving","walking","bicycling","transit","velib","autolib"]:
-            self._transport = transport
-        else:
-            print("Erreur : mode de transport saisi non reconnu. Valeur saisie : "+str(transport))
-
-    def calculer(self,origine,destination,transport):
-        """Fonction qui effectue le calcul pour la classe qui l'utilise, en remplissant au passage les attributs de Origine_Et_Destination."""
-        self._set_origine_destination_transport(origine,destination,transport)
+    def calculer(self):
+        """Fonction pour effectuer les calculs propre à la classe. Ces calculs sont effectués dès modification du lieu d'origine, de destination ou du moyen de transport, afin que les autres attributs de la classe soient toujours à jour."""
+        pass
 
 
 
-class Trajet(Origine_Et_Destination):
+class Trajet(_Origine_Et_Destination):
     """Caractérise un trajet classique entre un lieu d'origine et un lieu de destination."""
 
     def __init__(self):
-        Origine_Et_Destination.__init__(self)
+        _Origine_Et_Destination.__init__(self)
         self._distance = 0
         self._temps = 0
 
@@ -103,19 +137,45 @@ class Trajet(Origine_Et_Destination):
 
     # Méthode
 
-    def calculer(self,origine,destination,transport):
-        """Effectue un appel à l'API google pour calculer la distance et la durée du trajet. Remplit également les caractéristiques du trajet."""
-        if transport in ["driving", "walking", "bicycling", "transit"]:
-            self._set_origine_destination_transport(origine,destination,transport)
-            trajet = googlemaps.Client.directions(Origine_Et_Destination.client_google, origin=self._origine, destination=self._destination, mode=self._transport)
+    def calculer(self):
+
+        """Effectue un appel à l'API google pour calculer la distance et la durée du trajet."""
+
+        if self.transport not in ["driving", "walking", "bicycling", "transit"]:
+            raise ValueError("Le mode de transport '" + self.transport + "' n'est pas reconnu par l'API Google.")
+
+        try:
+            trajet = googlemaps.Client.directions(_Origine_Et_Destination.client_google, origin=self._origine, destination=self._destination, mode=self._transport)
+        except googlemaps.exceptions.TransportError:
+            raise googlemaps.exceptions.TransportError("Connexion avec l'API Google impossible. Vérifiez votre connexion internet.")
+        try:
+            trajet[0]['legs'][0]['distance']['value']
+            trajet[0]['legs'][0]['duration']['value']
+        except IndexError:
+            raise IndexError("Erreur du traitement par l'API Google (pas de route trouvée). Vérifiez les adresses rentrées ainsi que votre connexion à internet.")
+        else:
             self._distance = trajet[0]['legs'][0]['distance']['value']
             self._temps = trajet[0]['legs'][0]['duration']['value']
-        else:
-            print("Erreur : mode de transport saisi non reconnu. Valeur saisie : "+str(transport))
+
 
     def _definir(self,origine,destination,transport,distance,temps):
+
         """Au lieu d'effectuer le calcul de distance et de temps, impose des valeurs (dans le cas où elles ont été calculées par un autre moyen)."""
-        self._set_origine_destination_transport(origine,destination,transport)
+
+        if not isinstance(transport, str):
+            raise TypeError("Le mode de transport doit être une chaîne de caractères.")
+        if transport not in ["driving", "walking", "bicycling", "transit", "velib", "autolib"]:
+            raise ValueError("Le mode de transport '" + transport + "' n'est reconnu ni par l'API Google, ni comme un transport velib ou autolib.")
+        if not isinstance(distance,int):
+            raise TypeError("La distance doit être un entier.")
+        if not isinstance(temps,int):
+            raise TypeError("Le temps doit être un entier.")
+
+        #Pour éviter qu'un appel à l'API soit effecuté, on met temporairement l'attribut transport à ""
+        self._transport = ""
+        self.origine = origine
+        self.destination = destination
+        self._transport = transport
         self._distance = distance
         self._temps = temps
 
@@ -173,19 +233,21 @@ class Trajet_Lib(Trajet):
 
     # Méthodes
 
-    def calculer(self,origine,destination,transport):
+    def calculer(self):
         """Établit la durée et la distance du trajet, en supposant que les sous-trajets sont déjà calculés."""
-        if transport in ["velib","autolib"]:
-            self._set_origine_destination_transport(origine, destination, transport)
-            self._distance = self._trajet_initial._distance + self._trajet_lib._distance + self._trajet_final._distance
-            self._temps = self._trajet_initial._temps + self._trajet_lib._temps + self._trajet_final._temps
-        else:
-            print("Erreur : mode de transport saisi non reconnu. Valeur saisie : " + str(transport))
-
-    #Penser à changer la méthode calculer (en particulier car le calcul des trajets en transport lib doit être fait en parallèle sur les différents trajets).
+        if self.transport not in ["velib","autolib"]:
+            raise ValueError("Le mode de transport '" + self.transport + "' n'est pas reconnu comme un transport velib ou autolib.")
+        self._distance = self._trajet_initial._distance + self._trajet_lib._distance + self._trajet_final._distance
+        self._temps = self._trajet_initial._temps + self._trajet_lib._temps + self._trajet_final._temps
 
     def _definir_trajets(self,trajet_initial,trajet_lib,trajet_final):
         """Établit les trois sous-trajets qui définissent ce trajet. On évite de récupérer ces objets par référence car ils peuvent être utilisés pour d'autres trajets."""
+        if not isinstance(trajet_initial,Trajet):
+            raise ValueError("Les sous-trajets d'un trajet en velib ou autolib doivent être de la classe Trajet.")
+        if not isinstance(trajet_lib,Trajet):
+            raise ValueError("Les sous-trajets d'un trajet en velib ou autolib doivent être de la classe Trajet.")
+        if not isinstance(trajet_final,Trajet):
+            raise ValueError("Les sous-trajets d'un trajet en velib ou autolib doivent être de la classe Trajet.")
         self._tajet_initial = copy.copy(trajet_initial)
         self._trajet_lib = copy.copy(trajet_lib)
         self._trajet_final = copy.copy(trajet_final)
@@ -193,11 +255,11 @@ class Trajet_Lib(Trajet):
 
 
 #Pour ne pas faire trop d'appels à l'API google, utiliser le calcul des distances en matrice pour les différentes stations. Par conséquent il faut pouvoir créer les différents trajets lib en même temps.
-class Generateur_Trajets_Lib(Origine_Et_Destination):
+class Generateur_Trajets_Lib(_Origine_Et_Destination):
     """Classe pour générer et travailler sur un ensemble de Trajet_Lib entre deux points, en fonction des stations à proximité. Cette fonction utilise en particulier une fonction de l'API google maps permettant de calculer en même temps des trajets pour un ensemble de points de départs et d'arrivées, ce qui évite d'effectuer un appel à l'API pour chaque paire de stations possibles."""
 
     def __init__(self):
-        Origine_Et_Destination.__init__(self)
+        _Origine_Et_Destination.__init__(self)
         self._client = None
         self._mode = ""
         self._stations_departs = []
@@ -205,7 +267,25 @@ class Generateur_Trajets_Lib(Origine_Et_Destination):
 
     # Propriétés
 
-    """Faire les propriétés de cette classe"""
+    # Le client est volontairement laissé en attribut invisible.
+
+    def _get_mode(self):
+        return self._mode
+    def _set_mode(self,mode):
+        pass
+    mode = property(_get_mode,_set_mode)
+
+    def _get_stations_departs(self):
+        return self._stations_departs
+    def _set_stations_departs(self,stations_departs):
+        pass
+    stations_departs = property(_get_stations_departs,_set_stations_departs)
+
+    def _get_stations_arrivees(self):
+        return self._stations_arrivees
+    def _set_stations_arrivees(self,stations_arrivees):
+        pass
+    stations_arrivees = property(_get_stations_arrivees,_set_stations_arrivees)
 
     # Méthodes
 
@@ -216,18 +296,21 @@ class Generateur_Trajets_Lib(Origine_Et_Destination):
             self.mode = "bicycling"
         elif self._transport == "autolib":
             self.client = opendataparis.Client_Autolib()
-            self.mode="driving"
+            self.mode = "driving"
         else:
-            print("Erreur : mode de transport saisi non reconnu. Valeur saisie : " + str(transport))
+            raise ValueError("Le mode de transport '" + self.transport + "' n'est pas reconnu comme un transport velib ou autolib.")
 
     def _stations(self,distance_depart,distance_arrivee):
         """Méthode pour obtenir la liste des stations à proximité des points de départ et d'arrivée. Remarquons qu'actuellement le nombre de stations sélectionnées par défaut est définie dans les objets Client_Velib/Client_Autolib. Il faudra alors utiliser le paramètre limite des méthodes cherche_depart et cherche_arrivee si on souhaite pouvoir modifier ce paramètre à l'avenir."""
+        if not isinstance(distance_depart,int):
+            raise TypeError("Le rayon de recherche pour les stations de départ doit être un entier.")
+        if not isinstance(distance_arrivee,int):
+            raise TypeError("Le rayon de recherche pour les stations d'arrivée doit être un entier.")
         self._stations_departs = self._client.cherche_depart(self._coord_origine[0],self._coord_origine[1],distance_depart)
         self._stations_arrivees = self._client.cherche_arrivee(self._coord_destination[0],self._coord_destination[1],distance_arrivee)
 
-    def calculer(self,origine,destination,transport):
+    def calculer(self):
         """Méthode pour construire une liste de trajets lib, c'est-à-dire des trajets décomposés en trois sous trajets : origine-station / station-sttion (velib ou autolib) / station-destination."""
-        self._set_origine_destination_transport(origine,destination,transport)
         self._choix_client()
         self._stations(1000,1000)
         liste_trajets = []
@@ -239,7 +322,7 @@ class Generateur_Trajets_Lib(Origine_Et_Destination):
 
         #Trajets lib
         matrice_trajets_lib = []
-        resultat_api_trajets_lib = googlemaps.Client.distance_matrix(Origine_Et_Destination.client_google,self._stations_departs,self._stations_arrivees,mode=self.mode)
+        resultat_api_trajets_lib = googlemaps.Client.distance_matrix(_Origine_Et_Destination.client_google,self._stations_departs,self._stations_arrivees,mode=self.mode)
         for indice_depart in range(0,nombre_departs):
             matrice_trajets_lib.append([])
             for indice_arrivee in range (0,nombre_arrivees):
@@ -254,7 +337,7 @@ class Generateur_Trajets_Lib(Origine_Et_Destination):
 
         #Trajets initiaux
         liste_trajets_initiaux = []
-        resultat_api_trajets_initiaux = googlemaps.Client.distance_matrix(Origine_Et_Destination.client_google,[self._origine],self._stations_departs,mode='walking')
+        resultat_api_trajets_initiaux = googlemaps.Client.distance_matrix(_Origine_Et_Destination.client_google,[self._origine],self._stations_departs,mode='walking')
         for indice_depart in range(0,nombre_departs):
             liste_trajets_initiaux.append([])
             origine_initial = resultat_api_trajets_initiaux['origin_addresses'][0]
@@ -267,7 +350,7 @@ class Generateur_Trajets_Lib(Origine_Et_Destination):
 
         #Trajets finaux
         liste_trajets_finaux = []
-        resultat_api_trajets_finaux = googlemaps.Client.distance_matrix(Origine_Et_Destination.client_google,self._stations_arrivees,[self._destination],mode='walking')
+        resultat_api_trajets_finaux = googlemaps.Client.distance_matrix(_Origine_Et_Destination.client_google,self._stations_arrivees,[self._destination],mode='walking')
         for indice_arrivee in range(0,nombre_arrivees):
             liste_trajets_finaux.append([])
             origine_final = resultat_api_trajets_finaux['origin_addresses'][indice_arrivee]
@@ -293,10 +376,19 @@ if __name__ == "__main__":
     destination_test = "Rue de Rivoli Paris"
     #destination_test = (48.900092, 2.3398062)
 
-    test = Generateur_Trajets_Lib()
-    result = test.calculer(origine_test,destination_test,"velib")
-    print(result)
+    test = Trajet_Lib()
+    test.origine = origine_test
+    test.destination = destination_test
+    test.transport = "velib"
+    test._definir_trajets(Trajet(),Trajet(),Trajet())
+    print(test)
+
+    """ À faire : 
+    - travailler sur la méthode 'calculer' de Generateur_Trajets_Lib pour gérer les erreurs de communication avec l'API, et pour gérer son format de renvoit de réponse (peut-être créer un attribut pour y stocker la réponse ?)
+    - faire le travail de gestion des erreurs et de protection des classes sur opendataparis.py
+    - faire des commentaires plus propres et bien gérer la clareté du code
+    - faire la classe / les méthodes pour la calcul final (choix du trajet)
+    - mettre en commun avec les codes des autres"""
 
 
     os.system('pause')
-
