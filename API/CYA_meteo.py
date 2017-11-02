@@ -31,7 +31,7 @@ class Meteo():
         if code_requete == 200:
             pass
         elif code_requete == 400:
-            raise UrlPasValideError
+            raise ClePasValideError
         elif code_requete == 409:
             raise ServeurSurchargeError
         elif code_requete == 509:
@@ -54,36 +54,10 @@ class Meteo():
 
 
     def get_pluie(self,date):
-        """Prend en argument un string sous la forme d'une date YYYY-mm-dd HH:MM:SS ou dd-mm-YYYY HH:MM:SS
+        """Prend en argument un string sous la forme d'une date YYYY-mm-dd HH:MM:SS ou dd-mm-YYYY HH:MM:SS ou un objet datetime
         Renvoie un float qui correspond au niveau de précipitation en mm"""
 
-        #On va vérifier que la date est bien: soit une chaine de caractère sous le bon format ou alors un objet datetime
-        if isinstance(date,str):
-            try:
-                dateconvert = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
-            except ValueError:
-                dateconvert = datetime.datetime.strptime(date, "%d-%m-%Y %H:%M:%S") # derniere exception?
-        elif isinstance(date,datetime.datetime):
-            dateconvert = date
-            pass
-        else:
-            raise PasLeBonFormatDeDateError("Date sous la forme YYYY-mm-dd HH:MM:SS ou dd-mm-YYYY HH:MM:SS")
-
-        for i in self._doc.keys():
-            if isinstance(self._doc[i],dict):
-                datedict = datetime.datetime.strptime(i, "%Y-%m-%d %H:%M:%S")
-                diff = ((dateconvert - datedict).total_seconds() / 60)
-                if abs(diff) > 90: # On compare chaque date issues de l'API à la date paramètre et on récupère les données associés à la période de 3h la plus proche (à 90 min avant et après)
-                    continue
-                else:
-                    niveau_pluie = float(self._doc[i]['pluie'])
-                    return niveau_pluie
-
-    def get_temperature(self,date):
-        """Prend en argument un string sous la forme d'une date YYYY-mm-dd HH:MM:SS
-        Renvoie un flaot avec la valeur en °C de la température dans la plage de temps la plus proche de 'date'"""
-
-        #On va vérifier que la date est bien, soit une chaine de caractère sous le bon format soit un objet datetime
+        #On va vérifier que la date est: soit une chaine de caractère sous le bon format ou alors un objet datetime
         if isinstance(date,str):
             try:
                 dateconvert = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
@@ -95,11 +69,39 @@ class Meteo():
         else:
             raise PasLeBonFormatDeDateError("Date sous la forme YYYY-mm-dd HH:MM:SS ou dd-mm-YYYY HH:MM:SS")
 
+        # On compare chaque date issues de l'API à la date paramètre et on récupère les données associés à la période de 3h la plus proche (à 90 min avant et après)
         for i in self._doc.keys():
             if isinstance(self._doc[i],dict):
                 datedict = datetime.datetime.strptime(i, "%Y-%m-%d %H:%M:%S")
                 diff = ((dateconvert - datedict).total_seconds() / 60)
-                if abs(diff) > 90: # On compare chaque date issues de l'API à la date paramètre et on récupère les données associés à la période de 3h la plus proche (à 90 min avant et après)
+                if abs(diff) > 90:
+                    continue
+                else:
+                    niveau_pluie = float(self._doc[i]['pluie'])
+                    return niveau_pluie
+
+    def get_temperature(self,date):
+        """Prend en argument un string sous la forme d'une date YYYY-mm-dd HH:MM:SS ou dd-mm-YYYY HH:MM:SS ou un objet datetime
+        Renvoie un flaot avec la valeur en °C de la température dans la plage de temps la plus proche de 'date'"""
+
+        #On va vérifier que la date est: soit une chaine de caractère sous le bon format soit un objet datetime
+        if isinstance(date,str):
+            try:
+                dateconvert = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                dateconvert = datetime.datetime.strptime(date, "%d-%m-%Y %H:%M:%S")
+        elif isinstance(date,datetime.datetime):
+            dateconvert = date
+            pass
+        else:
+            raise PasLeBonFormatDeDateError("Date sous la forme YYYY-mm-dd HH:MM:SS ou dd-mm-YYYY HH:MM:SS")
+
+        # On compare chaque date issues de l'API à la date paramètre et on récupère les données associés à la période de 3h la plus proche (à 90 min avant et après)
+        for i in self._doc.keys():
+            if isinstance(self._doc[i],dict):
+                datedict = datetime.datetime.strptime(i, "%Y-%m-%d %H:%M:%S")
+                diff = ((dateconvert - datedict).total_seconds() / 60)
+                if abs(diff) > 90:
                     continue
                 else:
                     tempK = round(float(self._doc[i]['temperature']['2m']), 3)
@@ -107,6 +109,8 @@ class Meteo():
                     return tempC
 
     def description_temperature(self,date):
+        """Methode pour définir un seuillage de la Température en 3 cas : Froid,Tempéré,Chaud.
+        Il faut déterminer la nécessité de cette méthode"""
         temp = self.get_temperature(date)
         if temp < 12:
             return "Il fait froid"
@@ -120,9 +124,7 @@ if __name__ == "__main__":
     test = Meteo()
     print(test)
     print(test.url)
-    temp = test.get_temperature('2017-10-28 14:20:00')
+    temp = test.get_temperature('2017-11-02 14:20:00')
     pluie = test.get_pluie(datetime.datetime.now())
-    comment = test.description_temperature(datetime.datetime.now())
     print("résultat temp",temp)
     print("résultat pluie",pluie)
-    print("Commentaire Temps",comment)
