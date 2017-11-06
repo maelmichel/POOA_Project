@@ -1,7 +1,5 @@
 import requests
 import os
-"""à faire:
-- Faire les getter et setter pour les Vélibs et Autolibs"""
 
 class Client_Lib:
     """Classe pour compléter un appel à l'API OpenData Paris, en particulier pour construire une méthode permettant de retrouver les informations sur les stations (Autolib ou Vélib)
@@ -52,7 +50,7 @@ class Client_Autolib(Client_Lib):
             subscription_status = message[i]['fields']['subscription_status']
             slots = message[i]['fields']['slots']
             address = message[i]['fields']['address']
-            liste_stations.append(Station_Autolib(status,dist,charging_status,rental_status,cars,geo_point,charge_slots,postal_code,subscription_status,slots,address))
+            liste_stations.append(Station_Autolib(status, dist, charging_status, rental_status, cars, geo_point, charge_slots, postal_code, subscription_status, slots, address))
         return liste_stations
 
     def cherche_depart(self, latitude, longitude, distance):
