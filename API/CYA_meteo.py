@@ -42,9 +42,11 @@ class Meteo():
     @property
     def url(self):
         return self._url
+
     @property
     def donnees_api(self):
         return self._donnees_api
+
     @property
     def doc(self):
         return self._doc
@@ -108,23 +110,33 @@ class Meteo():
                     tempC = round(tempK - 273.15, 2)
                     return tempC
 
-    def description_temperature(self,date):
-        """Methode pour définir un seuillage de la Température en 3 cas : Froid,Tempéré,Chaud.
-        Il faut déterminer la nécessité de cette méthode"""
+    def seuil_temperature(self,date):
+        """Methode pour définir un seuillage de la Température en 3 cas : Froid,Tempéré,Chaud."""
         temp = self.get_temperature(date)
         if temp < 12:
-            return "Il fait froid"
+            return "Froid"
         elif (temp >= 12) and (temp < 25):
-            return "Parfait pour marcher"
+            return "Tempere"
         else:
-            return "Oula Commence à faire chaud"
+            return "Chaud"
+
+    def seuil_pluie(self,date):
+        """Méthode pour découper le niveau de précipitation en 3 seuils : Faible(0), Modéré(1), Forte(2)"""
+        pluie = self.get_pluie(date)
+        if (pluie >= 0) and (pluie < 11):
+            return 0
+        elif (pluie > 11) and (pluie < 22):
+            return 1
+        else:
+            return 2
 
 
 if __name__ == "__main__":
     test = Meteo()
     print(test)
     print(test.url)
-    temp = test.get_temperature('2017-11-02 14:20:00')
+    temp = test.get_temperature('2017-11-06 07:00:00')
     pluie = test.get_pluie(datetime.datetime.now())
+    print(test.seuil_pluie(datetime.datetime.now()))
     print("résultat temp",temp)
     print("résultat pluie",pluie)
