@@ -1,7 +1,7 @@
 import os
 import sys
-import copy
 import googlemaps
+from copy import copy,deepcopy
 sys.path.insert(0,"../API")
 import opendataparis
 
@@ -237,7 +237,7 @@ class Trajet(Etape):
     #Propriétés
     def _set_transport_trajet(self,transport):
         #Restriction de modes de transport possible à ceux correspondant à un type de trajet.
-        if transport not in ["transit", "velib", "autolib"]:
+        if transport not in ["walking","transit", "velib", "autolib"]:
             raise ValueError("transport non valide")
         self._transport = transport
         self._choix_client()
@@ -245,16 +245,17 @@ class Trajet(Etape):
     transport = property(_Origine_Et_Destination._get_transport, _set_transport_trajet)
 
     def _get_etapes(self):
-        return self._etapes
+        # Les tableaux étant traité par référence, on renvoit une copie du tableau pour éviter que le getter ne permette à l'utilisateur de modifier indirectement le contenu de ce tableau. De plus, puisque les éléments de ce tableau sont eux-même traités par références (il s'agit d'objets Etape), on effectue un deepcopy pour que ces éléments soient eux-même copiés.
+        return deepcopy(self._etapes)
     def _set_etapes(self,etapes):
         pass
     etapes = property(_get_etapes,_set_etapes)
 
     #Méthodes
     def _choix_client(self):
-        if self._transport == "transit":
+        if (self._transport == "walking") | (self._transport == "transit"):
             self._client = _Origine_Et_Destination.client_google
-            self._mode = "transit"
+            self._mode = self._transport
         elif self._transport == "velib":
             self._client = Trajet._client_velib
             self._mode = "bicycling"
@@ -320,11 +321,19 @@ class Trajet(Etape):
         except IndexError:
             raise Format_API_Error
 
+    def _calculer_walking(self):
+        etape = Etape()
+        etape._definir(self.origine,self.coord_origine,self.destination,self.coord_destination,'walking')
+        etape.calculer()
+        self._etapes = [etape]
+
     def calculer(self):
         """"""
         #Contrairement à ce qui était fait dans une précédente version du code, nous ne récupérerons ici qu'une seule statiton de départ et une seule station d'arrivée pour de la part des clients velib et autolib, ce afin de limiter le nombre d'appel à l'API Google et ainsi réduire le temps de traitement. On suppose donc que les clients velib et autolib fournissent déjà les stations les plus appropriées pour le trajet.
         self._choix_client()
-        if self._transport == "transit":
+        if self._transport == "walking":
+            self._calculer_walking()
+        elif self._transport == "transit":
             self._calculer_transit()
         elif (self._transport == "velib") | (self._transport == "autolib"):
             self._calculer_lib(2000)
@@ -341,12 +350,16 @@ class Choix_Trajet(_Origine_Et_Destination):
 
     """Effectue un choix de type de transport en fonction des trajets générés par les données choisies par l'utilisateur."""
 
-    # En attendant que l'on définisse la/les fonction(s) de comparaison des trajets (et les paramètres nécessaires à ces fonctions, comme la météo ou la charge de l'utilisateur), on se contente pour l'instant d'un comparatif au plus rapide (pas très pertinent, mais permet d'avoir une première structure pour le code dans l'attente de mieux).
+    @staticmethod
+    def _cout_trajet(trajet):
+        """Fonction statique de score permettant d'associer à un trajet un coût (mesuré en temps) pour pouvoir les comparer entre eux. Cette fonction prend en particulier en compte le niveau de pluie et la durée du trajet exposé à la pluie. Nous utilisons ici une fonction relativement basique. Bien entendu, la précision de l'application reposerait en partie sur le choix d'une fonction plus précise, comportant plus de paramètres et utilisant un modèle plus complexe."""
+        pass
+        # À compléter ASAP, dès que Mael a fini la modif pour la météo pour faire des test
 
     def __init__(self):
         _Origine_Et_Destination.__init__(self)
-        self._transports_possibles = {"transit":False, "velib":False, "autolib":False}
-        self._trajets_generes = {"transit":None, "velib":None, "autolib":None}
+        self._transports_possibles = {"walking":False, "transit":False, "velib":False, "autolib":False}
+        self._trajets_generes = {"walking":None, "transit":None, "velib":None, "autolib":None}
 
     # Propriétés
     def _get_transport(self):
@@ -357,34 +370,37 @@ class Choix_Trajet(_Origine_Et_Destination):
     transport = property(_get_transport,_set_transport)
 
     def _get_transports_possibles(self):
-        return self._transports_possibles
+        # De même que précédemment, on effectue une copie du tableau (traité par références) pour éviter une modification indirecte par l'utilisateur.
+        return copy(self._transports_possibles)
     def _set_transports_possibles(self,transports_possibles):
         pass
     transports_possibles = property(_get_transports_possibles,_set_transports_possibles)
 
     def _get_trajets_generes(self):
-        return self._trajets_generes
+        # De même que précédemment, on effectue une copie du tableau (traité par références) pour éviter une modification indirecte par l'utilisateur.
+        return copy(self._trajets_generes)
     def _set_trajets_generes(self,trajets_generes):
         pass
     trajets_generes = property(_get_trajets_generes,_set_trajets_generes)
 
-    def entrer_donnees_utilisateur(self,origine,destination,transit,velib,autolib):
+    def entrer_donnees_utilisateur(self,origine,destination,walking,transit,velib,autolib):
         # En attendant de voir l'interaction avec le front, on considère pour l'instant que ces données sont des paramètres de cette méthode
         if not isinstance(origine,str):
             raise TypeError("origine attend le format str")
         if not isinstance(destination,str):
             raise TypeError("destination attend le format str")
-        if (not isinstance(transit,bool)) | (not isinstance(velib,bool)) | (not isinstance(autolib,bool)):
+        if (not isinstance(walking,bool)) | (not isinstance(transit,bool)) | (not isinstance(velib,bool)) | (not isinstance(autolib,bool)):
             raise TypeError("les choix attendent le format bool")
         self.origine = origine
         self.destination = destination
+        self._transports_possibles["walking"] = walking
         self._transports_possibles["transit"] = transit
         self._transports_possibles["velib"] = velib
         self._transports_possibles["autolib"] = autolib
 
     def calculer(self):
         """Calcule les trajets possibles d'après les choix de l'utilisateur."""
-        for transport in ["transit","velib","autolib"]:
+        for transport in ["walking","transit","velib","autolib"]:
             if self._transports_possibles[transport]:
                 trajet = Trajet()
                 trajet._definir(self.origine,self.coord_origine,self.destination,self.coord_destination,transport)
@@ -395,7 +411,7 @@ class Choix_Trajet(_Origine_Et_Destination):
     def choix(self):
         """Fait le choix du meilleur trajet et retourne le résultat."""
         meilleur_trajet = None
-        for transport in ["transit","velib","autolib"]:
+        for transport in ["walking","transit","velib","autolib"]:
             if self._transports_possibles[transport]:
                 if meilleur_trajet!=None:
                     if self._trajets_generes[transport].temps>meilleur_trajet.temps:
@@ -406,7 +422,7 @@ class Choix_Trajet(_Origine_Et_Destination):
     def __repr__(self):
         """On représente les trajets trouvés."""
         repr_string = ""
-        for transport in ["transit","velib","autolib"]:
+        for transport in ["walking","transit","velib","autolib"]:
             if (not self._transports_possibles[transport]) | (self._trajets_generes[transport]==None):
                 continue
             trajet = self._trajets_generes[transport]
@@ -422,11 +438,24 @@ if __name__ == "__main__":
     destination_test = "Rue de Rivoli Paris"
     coord_destination_test = (48.900092, 2.3398062)
 
-    test = Choix_Trajet()
-    test.entrer_donnees_utilisateur(origine_test,destination_test,True,True,True)
+    test = Trajet()
+    test._definir(origine_test,coord_origine_test,destination_test,coord_destination_test,'transit')
     test.calculer()
-    print(test)
-    print(test.choix())
+    print(test.etapes)
+    print(test.etapes[1])
+    a_modifier = test.etapes
+    a_modifier_deep = test.etapes[1]
+    a_modifier[0] = "bonjour"
+    a_modifier_deep.transport = "driving"
+    print(test.etapes)
+    print(test.etapes[1])
+
+    '''
+    print(resultat.origine)
+    for etape in resultat.etapes:
+        print(etape.destination)
+    print(resultat.afficher_temps())
+    '''
 
     """ À faire : 
     - faire des commentaires plus propres et bien gérer la clareté du code
@@ -434,3 +463,4 @@ if __name__ == "__main__":
 
 
     os.system('pause')
+
