@@ -1,10 +1,11 @@
 import os
 import sys
 import googlemaps
-from copy import copy,deepcopy
-sys.path.insert(0,"../API")
+import datetime
+from copy import copy, deepcopy
+sys.path.insert(0, "../API")
 import opendataparis
-
+from CYA_meteo import Meteo
 
 
 # Erreurs
@@ -351,10 +352,14 @@ class Choix_Trajet(_Origine_Et_Destination):
     """Effectue un choix de type de transport en fonction des trajets générés par les données choisies par l'utilisateur."""
 
     @staticmethod
-    def _cout_trajet(trajet):
+    def _cout_trajet(trajet,niveau_pluie):
         """Fonction statique de score permettant d'associer à un trajet un coût (mesuré en temps) pour pouvoir les comparer entre eux. Cette fonction prend en particulier en compte le niveau de pluie et la durée du trajet exposé à la pluie. Nous utilisons ici une fonction relativement basique. Bien entendu, la précision de l'application reposerait en partie sur le choix d'une fonction plus précise, comportant plus de paramètres et utilisant un modèle plus complexe."""
-        pass
-        # À compléter ASAP, dès que Mael a fini la modif pour la météo pour faire des test
+        coefficient_surcout = {0: 0.2, 1: 0.5, 2: 1}
+        valeur_du_trajet = trajet.temps
+        for etape in trajet.etapes:
+            if etape.transport in ['walking','bicycling']:
+                valeur_du_trajet += coefficient_surcout[niveau_pluie] * etape.temps
+        return valeur_du_trajet
 
     def __init__(self):
         _Origine_Et_Destination.__init__(self)
@@ -410,13 +415,22 @@ class Choix_Trajet(_Origine_Et_Destination):
 
     def choix(self):
         """Fait le choix du meilleur trajet et retourne le résultat."""
+        niveau_pluie = Meteo().seuil_pluie(datetime.datetime.now())
         meilleur_trajet = None
+        meilleur_score = 0
+        # Vérification parmi les différents trajets trouvés (non nuls) celui qui a le score le plus faible (en privilégiant les premiers transports de la liste)
         for transport in ["walking","transit","velib","autolib"]:
-            if self._transports_possibles[transport]:
-                if meilleur_trajet!=None:
-                    if self._trajets_generes[transport].temps>meilleur_trajet.temps:
-                        continue
-                meilleur_trajet = self._trajets_generes[transport]
+            if (self._transports_possibles[transport]) & (self._trajets_generes[transport]!=None):
+                if meilleur_trajet==None:
+                    meilleur_trajet = self._trajets_generes[transport]
+                    meilleur_score = Choix_Trajet._cout_trajet(self._trajets_generes[transport], niveau_pluie)
+                else:
+                    score = Choix_Trajet._cout_trajet(self._trajets_generes[transport], niveau_pluie)
+                    if score<meilleur_score:
+                        # En cas d'égalité des score, on privilégie walking, puis transit, puis velib, puis autolib
+                        meilleur_trajet = self._trajets_generes[transport]
+                        meilleur_score = score
+
         return meilleur_trajet
 
     def __repr__(self):
@@ -433,29 +447,16 @@ class Choix_Trajet(_Origine_Et_Destination):
 
 if __name__ == "__main__":
 
-    origine_test = "6 Parvis Notre-Dame Paris"
-    coord_origine_test = (48.9011922, 2.3399989)
-    destination_test = "Rue de Rivoli Paris"
-    coord_destination_test = (48.900092, 2.3398062)
+    origine_test = "CentraleSupelec"
+    destination_test = "Dernier bar avant la fin du monde"
 
-    test = Trajet()
-    test._definir(origine_test,coord_origine_test,destination_test,coord_destination_test,'transit')
+    test = Choix_Trajet()
+    test.entrer_donnees_utilisateur(origine_test,destination_test,True,True,True,True)
     test.calculer()
-    print(test.etapes)
-    print(test.etapes[1])
-    a_modifier = test.etapes
-    a_modifier_deep = test.etapes[1]
-    a_modifier[0] = "bonjour"
-    a_modifier_deep.transport = "driving"
-    print(test.etapes)
-    print(test.etapes[1])
 
-    '''
-    print(resultat.origine)
-    for etape in resultat.etapes:
-        print(etape.destination)
-    print(resultat.afficher_temps())
-    '''
+    meilleur = test.choix()
+    print(meilleur)
+    print(meilleur.etapes)
 
     """ À faire : 
     - faire des commentaires plus propres et bien gérer la clareté du code
@@ -463,4 +464,3 @@ if __name__ == "__main__":
 
 
     os.system('pause')
-
