@@ -51,24 +51,25 @@ class Client_Autolib(Client_Lib):
             slots = message[i]['fields']['slots']
             address = message[i]['fields']['address']
             liste_stations.append(Station_Autolib(status, dist, charging_status, rental_status, cars, geo_point, charge_slots, postal_code, subscription_status, slots, address))
+            status, dist, charging_status, rental_status, cars, geo_point, charge_slots, postal_code, subscription_status, slots, id, address
         return liste_stations
 
-    def cherche_depart(self, latitude, longitude, distance):
+    def cherche_depart(self, latitude, longitude, distance,limite):
         """Récupère la liste des coordonnées de stations utilisables pour un départ dans un rayon donné."""
         liste = self.stations(latitude, longitude, distance)
         nouvelle_liste = []
         for i in range(0, len(liste)):
-            if (liste[i].status == "ok") & (liste[i]._cars > 0):
+            if (liste[i].status == "ok") & (liste[i]._cars > 0) & (len(nouvelle_liste) < limite):
                 # Remarque : on pourra soulever une alerte tout de même si le nombre de voitures restantes est faible
                 nouvelle_liste.append(liste[i].geo_point)
         return nouvelle_liste
 
-    def cherche_arrivee(self,latitude,longitude,distance):
+    def cherche_arrivee(self,latitude,longitude,distance,limite):
         """Récupère la liste des coordonnées de stations utilisables pour une arrivée dans un rayon donné."""
         liste = self.stations(latitude, longitude, distance)
         nouvelle_liste = []
         for i in range(0, len(liste)):
-            if (liste[i].status == "ok") & (liste[i]._slots > 0):
+            if (liste[i].status == "ok") & (liste[i]._slots > 0) & (len(nouvelle_liste) < limite):
                 # Remarque : on pourra soulever une alerte tout de même si le nombre de places restantes est faible
                 nouvelle_liste.append(liste[i].geo_point)
         return nouvelle_liste
@@ -99,22 +100,22 @@ class Client_Velib(Client_Lib):
             liste_stations.append(Station_Velib(status,dist,name,available_bike_stands,banking,available_bikes,address,position))
         return liste_stations
 
-    def cherche_depart(self, latitude, longitude, distance):
+    def cherche_depart(self, latitude, longitude, distance,limite):
         """Récupère la liste des coordonnées de stations utilisables pour un départ dans un rayon donné."""
         liste = self.stations(latitude, longitude, distance)
         nouvelle_liste = []
         for i in range(0, len(liste)):
-            if (liste[i].status == "OPEN") & (liste[i]._available_bikes > 0):
+            if (liste[i].status == "OPEN") & (liste[i]._available_bikes > 0) & (len(nouvelle_liste) < limite):
                 # Remarque : on pourra soulever une alerte tout de même si le nombre de vélos restant est faible
                 nouvelle_liste.append(liste[i].position)
         return nouvelle_liste
 
-    def cherche_arrivee(self,latitude,longitude,distance):
+    def cherche_arrivee(self,latitude,longitude,distance,limite):
         """Récupère la liste des coordonnées de stations utilisables pour une arrivée dans un rayon donné."""
         liste = self.stations(latitude, longitude, distance)
         nouvelle_liste = []
         for i in range(0, len(liste)):
-            if (liste[i].status == "OPEN") & (liste[i]._available_bike_stands > 0):
+            if (liste[i].status == "OPEN") & (liste[i]._available_bike_stands > 0) & (len(nouvelle_liste) < limite):
                 # Remarque : on pourra soulever une alerte tout de même si le nombre de places restantes est faible
                 nouvelle_liste.append(liste[i].position)
         return nouvelle_liste
@@ -168,7 +169,7 @@ class Station_Velib:
 
 class Station_Autolib:
     """Classe permettant de formaliser une station Autolib avec les données issus de l'API"""
-    def __init__(self,status,dist,charging_status,rental_status,cars,geo_point,charge_slots,postal_code,subscription_status,slots,id,address):
+    def __init__(self,status,dist,charging_status,rental_status,cars,geo_point,charge_slots,postal_code,subscription_status,slots,address):
         self._status = status
         self._dist = dist
         self._charging_status = charging_status
@@ -179,7 +180,6 @@ class Station_Autolib:
         self._postal_code = postal_code
         self._subscription_status = subscription_status
         self._slots = slots
-        self._id = id
         self._address = address
 
     # On protège tous nos attributs. Aucune méthode pour modifier les attributs n'est requise car on ne veut pas modifier les résultats de l'API
@@ -243,8 +243,8 @@ if __name__ == "__main__":
 
     test = Client_Velib()
 
-    departs = test.cherche_depart(latitude,longitude,distance)
-    arrivees = test.cherche_arrivee(latitude_bis,longitude_bis,distance_bis)
+    departs = test.cherche_depart(latitude,longitude,distance,2)
+    arrivees = test.cherche_arrivee(latitude_bis,longitude_bis,distance_bis,2)
     testest = test.stations(latitude,longitude,distance)
     print(testest[0].position)
 
