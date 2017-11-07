@@ -1,13 +1,17 @@
 # POOA_Project
 
-Hello World!
+Comment y Aller?
+Petit programme permettant à un utilisateur de rentrer son addresse de Départ et d'Arrivée ainsi qu'une liste de moyens de transport.
+Le programme va nous retourner le moyen de transport le plus rapide en fonction de la météo (pluie), et la charge que l'utilisateur transporte.
 
-Projet pour l'ECP sur une pseudo-application d'aide à la décision sur le choix des différents transports parisiens pour bouger au travers de la capitale
 
-On fait un dépot Git.
+INSTALLATION
+Avant d'utiliser le programme, assurez-vous d'avoir les librairies suivantes ou en les installants grâce à pip :
+- googlemaps ==> pip install googlemaps
+- requests ==> pip install requests
+- tkinter ==> pip install tkinter
+- copy ==> pip install copy 
 
-API Infoclimat => Raisonnable = 5000 requetes/24h & 1 requete par seconde
+UTILISATION
 
-Modules devant être installés pour l'éxécution du programme :
-googlemaps  => pip install googlemaps
-requests => pip install requests
+Simplement exécuter le script jenesaispasencorelenom.py
