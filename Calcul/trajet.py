@@ -11,12 +11,20 @@ from CYA_meteo import Meteo
 # Erreurs
 
 class Connexion_API_Error(Exception):
+    """Erreur soulevée lorsque la connexion une API (google, velib ou autolib) n'est pas possible, par exemple si l'utilisateur n'est pas connecté à internet ou encore si l'API rencontre un problème."""
     pass
 
 class Format_API_Error(Exception):
+    """Erreur renvoyé lorsque la réponse de l'API n'est pas au format attendu. Cela peut en particulier se produire si les données envoyées à celle-ci ne sont pas comprises, par exemple si une chaîne de caractère n'est pas reconnue comme une adresse."""
+    pass
+
+class Aucun_Transport_Trouve(Exception):
+    """Erreur levé lorsque les conditions imposées par l'utilisateur ne permettent pas de trouver le moindre trajet possible."""
     pass
 
 
+
+# Classes
 
 class _Origine_Et_Destination:
 
@@ -37,10 +45,15 @@ class _Origine_Et_Destination:
     def _get_origine(self):
         return self._origine
     def _set_origine(self, origine):
+        """Ce setter assure que :
+            - la chaîne de caractères désignant l'adresse prend comme valeur l'adresse donnée par Google ;
+            - les coordonnées soient mises à jour pour correspondre à cette adresse ;
+            - un appel à la méthode calculé est effectué pour que les autres attributs qui peuvent être influencés par ce changement soient mis à jour (comme la distance ou le temps d'un trajet). Cet appel n'est effectué que si la destination et de transport sont également définis."""
         if not isinstance(origine,str):
             raise TypeError("origine attend le format str")
         try:
             result_api_origine = googlemaps.Client.geocode(_Origine_Et_Destination.client_google, origine)
+            # Les trois lignes suivantes servent à lever une erreur si ces indexes ne sont pas définis
             result_api_origine[0]['formatted_address']
             result_api_origine[0]['geometry']['location']['lat']
             result_api_origine[0]['geometry']['location']['lng']
@@ -58,6 +71,7 @@ class _Origine_Et_Destination:
     def _get_coord_origine(self):
         return self._coord_origine
     def _set_coord_origine(self, coord):
+        """Si ce setter est appelé, il récupère auprès le l'API Google l'adresse correspondant aux coordonnées fournies, pour ensuite appeler le setter de l'adresse pour l'adresse trouvée."""
         if (not isinstance(coord,tuple)) | (len(coord)!=2) | (not isinstance(coord[0],float)) | (not isinstance(coord[1],float)):
             raise TypeError("coord_origine attend un tuple de float")
         try:
@@ -72,6 +86,7 @@ class _Origine_Et_Destination:
     def _get_destination(self):
         return self._destination
     def _set_destination(self, destination):
+        """Ce setter fonctionne de la même manière que _set_origine"""
         if not isinstance(destination,str):
             raise TypeError("destination attend le format str")
         try:
@@ -93,6 +108,7 @@ class _Origine_Et_Destination:
     def _get_coord_destination(self):
         return self._coord_destination
     def _set_coord_destination(self, coord):
+        """Ce setter fonctionne de la même manière que _set_coord_origine"""
         if (not isinstance(coord,tuple)) | (len(coord)!=2) | (not isinstance(coord[0],float)) | (not isinstance(coord[1],float)):
             raise TypeError("coord_destination attend un tuple de float")
         try:
@@ -107,6 +123,7 @@ class _Origine_Et_Destination:
     def _get_transport(self):
         return self._transport
     def _set_transport(self, transport):
+        """Ce setter vérifie que le transport fourni corrspond bien à un transport reconnu par les objets définis plus loin. De plus, si l'origine et la destination sont définies, fait appel à la méthode calculer pour modifier les autres attributs pouvant dépendre de ce changement (comme la distance ou le temps du trajet)."""
         if not isinstance(transport,str):
             raise TypeError("transport attend le format str")
         if transport not in ["driving","walking","bicycling","transit","velib","autolib"]:
@@ -119,11 +136,11 @@ class _Origine_Et_Destination:
     # Méthodes
 
     def calculer(self):
-        """Méthode pour effectuer les calculs propre à la classe. Ces calculs sont effectués dès modification du lieu d'origine, de destination ou du moyen de transport, afin que les autres attributs de la classe soient toujours à jour."""
+        """Méthode pour effectuer les calculs propre à la classe. Ces calculs sont effectués dès modification du lieu d'origine, de destination ou du moyen de transport, afin que les autres attributs de la classe soient toujours à jour. Ici il n'y a pas d'autres attributs qui en dépendent, la méthode calculer ne fait donc rien."""
         pass
 
     def _definir(self,origine,coord_origine,destination,coord_destination,transport,distance=0,temps=0):
-        """Méthode appelée lorsque l'on souhaite définir les attributs de l'objet sans vérification. On appelle cette méthode en particulier lorsque les attributs ont déjà été définis ailleurs. En passant par cette méthode on évite ainsi d'appeler l'API google pour vérifier les adresses et coordonnées, et on évite également de lancer la méthode calculer pour obtenir la valeur des autres attributs."""
+        """Méthode appelée lorsque l'on souhaite définir les attributs de l'objet sans vérification. On appelle cette méthode en particulier lorsque les attributs ont déjà été culculés ailleurs. En passant par cette méthode on évite ainsi d'appeler l'API google pour vérifier les adresses et coordonnées, et on évite également de lancer la méthode calculer pour obtenir la valeur des autres attributs."""
         if not isinstance(origine,str):
             raise TypeError("origine attend le format str")
         if (not isinstance(coord_origine,tuple)) | (len(coord_origine)!=2) | (not isinstance(coord_origine[0],float)) | (not isinstance(coord_origine[1],float)):
@@ -145,7 +162,7 @@ class _Origine_Et_Destination:
 
 
 class Etape(_Origine_Et_Destination):
-    """Caractérise une étape d'un trajet, c'est-à-dire une portion de trajet utilisant un seul type de transport : driving, walking, bicycling, transit"""
+    """Caractérise une étape d'un trajet, c'est-à-dire une portion de trajet utilisant un seul type de transport : "driving", "walking", "bicycling", "transit", soit respectivement une portion de trajet en voiture, à pieds, en vélo ou en transports en commun."""
 
     def __init__(self):
         _Origine_Et_Destination.__init__(self)
@@ -153,8 +170,9 @@ class Etape(_Origine_Et_Destination):
         self._temps = 0
 
     # Propriétés
+
     def _set_transport_etape(self,transport):
-        #Restriction des modes de transport possibles à ceux reconnus par l'API Google
+        # Modification du setter de transport pour restreindre les modes de transport possibles à ceux reconnus par l'API Google
         if transport not in ["driving","walking","bicycling","transit"]:
             raise ValueError("transport non valide")
         _Origine_Et_Destination._set_transport(self,transport)
@@ -163,6 +181,7 @@ class Etape(_Origine_Et_Destination):
     def _get_distance(self):
         return self._distance
     def _set_distance(self,distance):
+        """ Setter en lecture seule. """
         pass
     distance = property(_get_distance,_set_distance)
 
@@ -192,7 +211,7 @@ class Etape(_Origine_Et_Destination):
 
     def _definir(self,origine,coord_origine,destination,coord_destination,transport,distance=0,temps=0):
 
-        """Au lieu d'effectuer le calcul de distance et de temps, impose des valeurs (dans le cas où elles ont été calculées par un autre moyen). On suppose par ailleurs que origine et destination sont des adresses au bon format pour éviter de faire un appel inutile à l'API."""
+        """Au lieu d'effectuer le calcul de distance et de temps, impose des valeurs (dans le cas où elles ont été calculées par un autre moyen). On suppose par ailleurs que origine et destination sont des adresses au bon format (c'est-à-dire qu'elles ont déjà été vérifiée précédemment) pour éviter de faire un appel inutile à l'API."""
 
         _Origine_Et_Destination._definir(self,origine,coord_origine,destination,coord_destination,transport)
 
@@ -219,12 +238,13 @@ class Etape(_Origine_Et_Destination):
         return temps_trajet
 
     def __repr__(self):
+        """Représentation utilisée pendant la phase de développement."""
         return self._transport+" - distance : "+self.afficher_distance()+" / temps : "+self.afficher_temps()
 
 
 
 class Trajet(Etape):
-    """Caractérise un trajet entier, comportant plusieurs étapes (généralement une étape à pieds au début et à la fin, et une étape utilisant le transport voulu entre les deux). Un trajet aura comme transport transit, velib ou autolib. Remarquons que "transit" peut désigner une étape en transport en commun ou un trajet entier utilisant les transports en commun mais prenant également en compte les étapes à pieds. Cela est dû au fait que l'API Google utilise la même désignation "transit" dans les deux cas, nous gardons donc le format proposé par l'API."""
+    """Caractérise un trajet entier, comportant plusieurs étapes (généralement une étape à pieds au début et à la fin, et une étape utilisant le transport voulu entre les deux). Un trajet aura comme transport walking, transit, velib ou autolib. Remarquons que "transit" peut désigner une étape en transport en commun ou un trajet entier utilisant les transports en commun mais prenant également en compte les étapes à pieds. Cela est dû au fait que l'API Google utilise la même désignation "transit" dans les deux cas, nous gardons donc le format proposé par l'API."""
 
     _client_velib = opendataparis.Client_Velib()
     _client_autolib = opendataparis.Client_Autolib()
@@ -236,6 +256,7 @@ class Trajet(Etape):
         self._etapes = []
 
     #Propriétés
+
     def _set_transport_trajet(self,transport):
         #Restriction de modes de transport possible à ceux correspondant à un type de trajet.
         if transport not in ["walking","transit", "velib", "autolib"]:
@@ -252,8 +273,12 @@ class Trajet(Etape):
         pass
     etapes = property(_get_etapes,_set_etapes)
 
+    # _client et _mode sont laissés théoriquement interdits
+
     #Méthodes
+
     def _choix_client(self):
+        """ Effectue le choix du client utilisé, ainsi que du mode de transport utilisé durant les étapes qui ne sont pas à pieds (par exemple un trajet 'velib' sera associé au mode 'bicycling'). """
         if (self._transport == "walking") | (self._transport == "transit"):
             self._client = _Origine_Et_Destination.client_google
             self._mode = self._transport
@@ -265,12 +290,13 @@ class Trajet(Etape):
             self._mode = "driving"
 
     def _calculer_lib(self,rayon):
+        """Méthode calculer utilisée dans le cas d'un trajet velib ou autolib. Construit les trois étapes du trajet (à pieds - en transport - à pieds) sauf si aucune station de départ ou d'arrivée n'est trouvée."""
 
         stations_depart = self._client.cherche_depart(self._coord_origine[0],self._coord_origine[1],rayon,1)
         stations_arrivee = self._client.cherche_arrivee(self._coord_destination[0],self._coord_destination[1],rayon,1)
 
         if (stations_depart == []) | (stations_arrivee == []):
-            #Cas où aucune station n'est trouvé dans un rayon autour du départ ou de l'arrivée
+            #Cas où aucune station n'est trouvée dans un rayon autour du départ ou de l'arrivée
             self._etapes = []
 
         else:
@@ -298,6 +324,7 @@ class Trajet(Etape):
                 raise Format_API_Error
 
     def _calculer_transit(self):
+        """ Méthode calculer utilisée lorsqu'il s'agit d'un trajet 'transit'. Récupère les différentes étapes ainsi que les calculs de distance et de temps directement dans la réponse de l'API Google."""
         api_result = googlemaps.Client.directions(_Origine_Et_Destination.client_google, origin=self._origine,destination=self._destination, mode="transit")
         origine_etape = self.origine
         coord_origine_etape = self.coord_origine
@@ -323,14 +350,14 @@ class Trajet(Etape):
             raise Format_API_Error
 
     def _calculer_walking(self):
+        """ Méthode calculer utilisée pour un trajet à pieds : construit simplement une étape à pieds. """
         etape = Etape()
         etape._definir(self.origine,self.coord_origine,self.destination,self.coord_destination,'walking')
         etape.calculer()
         self._etapes = [etape]
 
     def calculer(self):
-        """"""
-        #Contrairement à ce qui était fait dans une précédente version du code, nous ne récupérerons ici qu'une seule statiton de départ et une seule station d'arrivée pour de la part des clients velib et autolib, ce afin de limiter le nombre d'appel à l'API Google et ainsi réduire le temps de traitement. On suppose donc que les clients velib et autolib fournissent déjà les stations les plus appropriées pour le trajet.
+        """ Fait appel à la fonction calculer appropriée au type de trajet. Calcule ensuite la distance et le temps total. """
         self._choix_client()
         if self._transport == "walking":
             self._calculer_walking()
@@ -356,23 +383,40 @@ class Choix_Trajet(_Origine_Et_Destination):
         """Fonction statique de score permettant d'associer à un trajet un coût (mesuré en temps) pour pouvoir les comparer entre eux. Cette fonction prend en particulier en compte le niveau de pluie et la durée du trajet exposé à la pluie. Nous utilisons ici une fonction relativement basique. Bien entendu, la précision de l'application reposerait en partie sur le choix d'une fonction plus précise, comportant plus de paramètres et utilisant un modèle plus complexe."""
         coefficient_surcout = {0: 0.2, 1: 0.5, 2: 1}
         valeur_du_trajet = trajet.temps
-        for etape in trajet.etapes:
-            if etape.transport in ['walking','bicycling']:
-                valeur_du_trajet += coefficient_surcout[niveau_pluie] * etape.temps
+        if self._considerer_meteo:
+            for etape in trajet.etapes:
+                if etape.transport in ['walking','bicycling']:
+                    valeur_du_trajet += coefficient_surcout[niveau_pluie] * etape.temps
         return valeur_du_trajet
 
     def __init__(self):
         _Origine_Et_Destination.__init__(self)
+        self._considerer_meteo = False
+        self._charge_utilisateur = 0
         self._transports_possibles = {"walking":False, "transit":False, "velib":False, "autolib":False}
         self._trajets_generes = {"walking":None, "transit":None, "velib":None, "autolib":None}
 
     # Propriétés
+
     def _get_transport(self):
+        """L'attribut transport n'étant pas utile à cette classe, on rend une chaine vide"""
         return ""
     def _set_transport(self, transport):
+        """L'attribut transport n'étant pas utile à cette classe, on ne le modifie pas"""
         pass
-    # L'attribut transport n'étant pas pertinant pour cette classe, il est considéré inaccessible
     transport = property(_get_transport,_set_transport)
+
+    def _get_considerer_meteo(self):
+        return self._considerer_meteo
+    def _set_considerer_meteo(self,meteo):
+        pass
+    considerer_meteo = property(_get_considerer_meteo,_set_considerer_meteo)
+
+    def _get_charge_utilisateur(self):
+        return self._charge_utilisateur
+    def _set_charge_utilisateur(self,charge):
+        pass
+    charge_utilisateur = property(_get_charge_utilisateur,_set_charge_utilisateur)
 
     def _get_transports_possibles(self):
         # De même que précédemment, on effectue une copie du tableau (traité par références) pour éviter une modification indirecte par l'utilisateur.
@@ -388,30 +432,42 @@ class Choix_Trajet(_Origine_Et_Destination):
         pass
     trajets_generes = property(_get_trajets_generes,_set_trajets_generes)
 
-    def entrer_donnees_utilisateur(self,origine,destination,walking,transit,velib,autolib):
-        # En attendant de voir l'interaction avec le front, on considère pour l'instant que ces données sont des paramètres de cette méthode
+    # Méthodes
+
+    def entrer_donnees_utilisateur(self,origine,destination,considerer_meteo,charge_utilisateur,walking,transit,velib,autolib):
+        # Récupère les données choisies par l'utilisateur au travers de l'UI.
         if not isinstance(origine,str):
             raise TypeError("origine attend le format str")
         if not isinstance(destination,str):
             raise TypeError("destination attend le format str")
         if (not isinstance(walking,bool)) | (not isinstance(transit,bool)) | (not isinstance(velib,bool)) | (not isinstance(autolib,bool)):
-            raise TypeError("les choix attendent le format bool")
+            raise TypeError("les choix de transport attendent le format bool")
+        if not isinstance(considerer_meteo,bool):
+            raise TypeError("le choix de meteo attend le format bool")
+        if not isinstance(charge_utilisateur,int):
+            raise TypeError("la charge utilisateur attend le format int")
         self.origine = origine
         self.destination = destination
+        self._considerer_meteo = considerer_meteo
+        self._charge_utilisateur = charge_utilisateur
         self._transports_possibles["walking"] = walking
         self._transports_possibles["transit"] = transit
         self._transports_possibles["velib"] = velib
         self._transports_possibles["autolib"] = autolib
 
     def calculer(self):
-        """Calcule les trajets possibles d'après les choix de l'utilisateur."""
+        """Calcule les trajets possibles d'après les choix de l'utilisateur. Le niveau de charge ainsi que les transports choisis peuvent interdire certains trajets."""
+        charge_maximale = {"walking": 1, "transit": 2, "velib": 1, "autolib": 3}
         for transport in ["walking","transit","velib","autolib"]:
-            if self._transports_possibles[transport]:
+            if self._transports_possibles[transport] & (self._charge_utilisateur <= charge_maximale[transport]):
                 trajet = Trajet()
                 trajet._definir(self.origine,self.coord_origine,self.destination,self.coord_destination,transport)
                 trajet.calculer()
                 if trajet.etapes != []:
                     self._trajets_generes[transport] = trajet
+
+        if self._trajets_generes == {"walking":None, "transit":None, "velib":None, "autolib":None}:
+            raise Aucun_Transport_Trouve
 
     def choix(self):
         """Fait le choix du meilleur trajet et retourne le résultat."""
@@ -458,9 +514,7 @@ if __name__ == "__main__":
     print(meilleur)
     print(meilleur.etapes)
 
-    """ À faire : 
-    - faire des commentaires plus propres et bien gérer la clareté du code
-    - mettre en commun avec les codes des autres"""
+
 
 
     os.system('pause')
