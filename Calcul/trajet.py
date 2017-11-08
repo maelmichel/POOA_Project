@@ -383,10 +383,9 @@ class Choix_Trajet(_Origine_Et_Destination):
         """Fonction statique de score permettant d'associer à un trajet un coût (mesuré en temps) pour pouvoir les comparer entre eux. Cette fonction prend en particulier en compte le niveau de pluie et la durée du trajet exposé à la pluie. Nous utilisons ici une fonction relativement basique. Bien entendu, la précision de l'application reposerait en partie sur le choix d'une fonction plus précise, comportant plus de paramètres et utilisant un modèle plus complexe."""
         coefficient_surcout = {0: 0.2, 1: 0.5, 2: 1}
         valeur_du_trajet = trajet.temps
-        if self._considerer_meteo:
-            for etape in trajet.etapes:
-                if etape.transport in ['walking','bicycling']:
-                    valeur_du_trajet += coefficient_surcout[niveau_pluie] * etape.temps
+        for etape in trajet.etapes:
+            if etape.transport in ['walking','bicycling']:
+                valeur_du_trajet += coefficient_surcout[niveau_pluie] * etape.temps
         return valeur_du_trajet
 
     def __init__(self):
@@ -479,9 +478,15 @@ class Choix_Trajet(_Origine_Et_Destination):
             if (self._transports_possibles[transport]) & (self._trajets_generes[transport]!=None):
                 if meilleur_trajet==None:
                     meilleur_trajet = self._trajets_generes[transport]
-                    meilleur_score = Choix_Trajet._cout_trajet(self._trajets_generes[transport], niveau_pluie)
+                    if self._considerer_meteo:
+                        meilleur_score = Choix_Trajet._cout_trajet(self._trajets_generes[transport], niveau_pluie)
+                    else:
+                        meilleur_score = self._trajets_generes[transport].temps
                 else:
-                    score = Choix_Trajet._cout_trajet(self._trajets_generes[transport], niveau_pluie)
+                    if self._considerer_meteo:
+                        score = Choix_Trajet._cout_trajet(self._trajets_generes[transport], niveau_pluie)
+                    else:
+                        score = self._trajets_generes[transport].temps
                     if score<meilleur_score:
                         # En cas d'égalité des score, on privilégie walking, puis transit, puis velib, puis autolib
                         meilleur_trajet = self._trajets_generes[transport]
@@ -507,7 +512,7 @@ if __name__ == "__main__":
     destination_test = "Dernier bar avant la fin du monde"
 
     test = Choix_Trajet()
-    test.entrer_donnees_utilisateur(origine_test,destination_test,True,True,True,True)
+    test.entrer_donnees_utilisateur(origine_test,destination_test,False,0,True,True,True,True)
     test.calculer()
 
     meilleur = test.choix()
