@@ -381,7 +381,7 @@ class Choix_Trajet(_Origine_Et_Destination):
     @staticmethod
     def _cout_trajet(trajet,niveau_pluie):
         """Fonction statique de score permettant d'associer à un trajet un coût (mesuré en temps) pour pouvoir les comparer entre eux. Cette fonction prend en particulier en compte le niveau de pluie et la durée du trajet exposé à la pluie. Nous utilisons ici une fonction relativement basique. Bien entendu, la précision de l'application reposerait en partie sur le choix d'une fonction plus précise, comportant plus de paramètres et utilisant un modèle plus complexe."""
-        coefficient_surcout = {0: 0.2, 1: 0.5, 2: 1}
+        coefficient_surcout = {0: 0, 1: 0.2, 2: 0.5, 3: 1}
         valeur_du_trajet = trajet.temps
         for etape in trajet.etapes:
             if etape.transport in ['walking','bicycling']:
