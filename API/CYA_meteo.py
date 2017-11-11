@@ -69,7 +69,7 @@ class Meteo():
             dateconvert = date
             pass
         else:
-            raise PasLeBonFormatDeDateError("Date sous la forme YYYY-mm-dd HH:MM:SS ou dd-mm-YYYY HH:MM:SS")
+            raise PasLeBonFormatDeDateError("Mettre la date sous la forme YYYY-mm-dd HH:MM:SS ou dd-mm-YYYY HH:MM:SS")
 
         # On compare chaque date issues de l'API à la date paramètre et on récupère les données associés à la période de 3h la plus proche (à 90 min avant et après)
         for i in self._doc.keys():
@@ -121,14 +121,16 @@ class Meteo():
             return "Chaud"
 
     def seuil_pluie(self,date):
-        """Méthode pour découper le niveau de précipitation en 3 seuils : Faible(0), Modéré(1), Forte(2)"""
+        """Méthode pour découper le niveau de précipitation en 4 seuils : Nulle(0), Faible(1), Modéré(2), Forte(3)"""
         pluie = self.get_pluie(date)
-        if (pluie >= 0) and (pluie < 11):
+        if pluie < 2:
             return 0
-        elif (pluie > 11) and (pluie < 22):
+        if (pluie >= 2) and (pluie < 11):
             return 1
-        else:
+        elif (pluie > 11) and (pluie < 22):
             return 2
+        else:
+            return 3
 
 
 if __name__ == "__main__":
