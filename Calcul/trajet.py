@@ -243,6 +243,55 @@ class Etape(_Origine_Et_Destination):
 
 
 
+class Etape_Transit(Etape):
+    """ Classe pour représenter une étape en transport en commun, afin d'y ajouter quelques informations supplémentaires. """
+
+    def __init__(self):
+        Etape.__init__(self)
+        self._nom_origine = ""
+        self._nom_destination = ""
+        self._type_transport = ""
+        self._nom_transport = ""
+
+    # Propriétés
+
+    def _get_nom_origine(self):
+        return self._nom_origine
+    def _set_nom_origine(self,nom_origine):
+        pass
+    nom_origine = property(_get_nom_origine,_set_nom_origine)
+
+    def _get_nom_destination(self):
+        return self._nom_destination
+    def _set_nom_destination(self,nom_destination):
+        pass
+    nom_destination = property(_get_nom_destination,_set_nom_destination)
+
+    def _get_type_transport(self):
+        return self._type_transport
+    def _set_type_transport(self,type_transport):
+        pass
+    type_transport = property(_get_type_transport,_set_type_transport)
+
+    def _get_nom_transport(self):
+        return self._nom_transport
+    def _set_nom_transport(self,nom_transport):
+        pass
+    nom_transport = property(_get_nom_transport,_set_nom_transport)
+
+    # Méthodes
+
+    def _definir_noms(self,nom_origine,nom_destination,type_transport,nom_transport):
+        """Méthode pour définir d'un coup tous les attributs propre à un transport en commun."""
+        if (not isinstance(nom_origine,str)) | (not isinstance(nom_destination,str)) | (not isinstance(type_transport,str)) | (not isinstance(nom_transport,str)):
+            raise TypeError("les attributs d'un transit attendent le format str")
+        self._nom_origine = nom_origine
+        self._nom_destination = nom_destination
+        self._type_transport = type_transport
+        self._nom_transport = nom_transport
+
+
+
 class Trajet(Etape):
     """Caractérise un trajet entier, comportant plusieurs étapes (généralement une étape à pieds au début et à la fin, et une étape utilisant le transport voulu entre les deux). Un trajet aura comme transport walking, transit, velib ou autolib. Remarquons que "transit" peut désigner une étape en transport en commun ou un trajet entier utilisant les transports en commun mais prenant également en compte les étapes à pieds. Cela est dû au fait que l'API Google utilise la même désignation "transit" dans les deux cas, nous gardons donc le format proposé par l'API."""
 
@@ -336,10 +385,16 @@ class Trajet(Etape):
                 transport = etape_api['travel_mode'].lower()
                 if transport == "walking":
                     coord_destination_etape = (etape_api['steps'][-1]['end_location']['lat'],etape_api['steps'][-1]['end_location']['lng'])
+                    etape = Etape()
                 else:
                     coord_destination_etape = (etape_api['transit_details']['arrival_stop']['location']['lat'],etape_api['transit_details']['arrival_stop']['location']['lng'])
-                # Création de l'objet Etape correspondant
-                etape = Etape()
+                    etape = Etape_Transit()
+                    nom_origine = etape_api['transit_details']['departure_stop']['name']
+                    nom_destination = etape_api['transit_details']['arrival_stop']['name']
+                    type_transport = etape_api['transit_details']['line']['vehicle']['type']
+                    nom_transport = etape_api['transit_details']['line']['short_name']
+                    etape._definir_noms(nom_origine,nom_destination,type_transport,nom_transport)
+                # Remplissage de l'objet Etape correspondant
                 etape.coord_destination = coord_destination_etape
                 etape._definir(origine_etape,coord_origine_etape,etape.destination,etape.coord_destination,transport,distance,temps)
                 self._etapes.append(etape)
@@ -492,6 +547,10 @@ class Choix_Trajet(_Origine_Et_Destination):
                         meilleur_trajet = self._trajets_generes[transport]
                         meilleur_score = score
 
+        # Si aucun meilleur trajet n'est trouvé, un erreur est renvoyée. Cette erreur étant déjà renvoyée dans la fonction calculer, ce test est présent pour le cas où l'appel à la fonction calculer a été oublié.
+        if meilleur_trajet == None:
+            raise Aucun_Transport_Trouve
+
         return meilleur_trajet
 
     def __repr__(self):
@@ -509,17 +568,23 @@ class Choix_Trajet(_Origine_Et_Destination):
 if __name__ == "__main__":
 
     origine_test = "CentraleSupelec"
-    destination_test = "Dernier bar avant la fin du monde"
+    destination_test = "Royan"
 
     test = Choix_Trajet()
-    test.entrer_donnees_utilisateur(origine_test,destination_test,False,0,True,True,True,True)
+    test.entrer_donnees_utilisateur(origine_test,destination_test,True,2,True,True,True,True)
     test.calculer()
+    result = test.choix()
 
-    meilleur = test.choix()
-    print(meilleur)
-    print(meilleur.etapes)
-
-
-
+    print(result)
+    print()
+    for etape in result.etapes:
+        transport = etape.transport
+        print(etape)
+        if transport=='transit':
+            print(etape.nom_origine)
+            print(etape.nom_destination)
+            print(etape.type_transport)
+            print(etape.nom_transport)
+        print()
 
     os.system('pause')
