@@ -168,6 +168,7 @@ class Etape(_Origine_Et_Destination):
         _Origine_Et_Destination.__init__(self)
         self._distance = 0
         self._temps = 0
+        self._poly = ""
 
     # Propriétés
 
@@ -191,6 +192,12 @@ class Etape(_Origine_Et_Destination):
         pass
     temps = property(_get_temps,_set_temps)
 
+    def _get_poly(self):
+        return self._poly
+    def _set_poly(self,poly):
+        pass
+    poly = property(_get_poly,_set_poly)
+
     # Méthode
 
     def calculer(self):
@@ -204,6 +211,7 @@ class Etape(_Origine_Et_Destination):
             trajet = googlemaps.Client.directions(_Origine_Et_Destination.client_google, origin=self._origine, destination=self._destination, mode=self._transport)
             self._distance = trajet[0]['legs'][0]['distance']['value']
             self._temps = trajet[0]['legs'][0]['duration']['value']
+            self._poly = trajet[0]['overview_polyline']['points']
         except googlemaps.exceptions.TransportError:
             raise Connexion_API_Error
         except IndexError:
@@ -252,15 +260,8 @@ class Etape_Transit(Etape):
         self._nom_destination = ""
         self._type_transport = ""
         self._nom_transport = ""
-        self._points = None
 
     # Propriétés
-
-    def _get_points(self):
-        return self._points
-    def _set_points(self,points):
-        pass
-    points = property(_get_points,_set_points)
 
     def _get_nom_origine(self):
         return self._nom_origine
@@ -288,16 +289,14 @@ class Etape_Transit(Etape):
 
     # Méthodes
 
-    def _definir_noms(self,nom_origine,nom_destination,type_transport,nom_transport,points=None):
+    def _definir_noms(self,nom_origine,nom_destination,type_transport,nom_transport):
         """Méthode pour définir d'un coup tous les attributs propre à un transport en commun."""
         if (not isinstance(nom_origine,str)) | (not isinstance(nom_destination,str)) | (not isinstance(type_transport,str)) | (not isinstance(nom_transport,str)):
             raise TypeError("les attributs d'un transit attendent le format str")
-        # Ajouter la gestion d'erreur de points dès que le type est connu
         self._nom_origine = nom_origine
         self._nom_destination = nom_destination
         self._type_transport = type_transport
         self._nom_transport = nom_transport
-        self._points = points
 
 
 
