@@ -15,11 +15,11 @@ class Connexion_API_Error(Exception):
     pass
 
 class Format_API_Error(Exception):
-    """Erreur renvoyé lorsque la réponse de l'API n'est pas au format attendu. Cela peut en particulier se produire si les données envoyées à celle-ci ne sont pas comprises, par exemple si une chaîne de caractère n'est pas reconnue comme une adresse."""
+    """Erreur renvoyée lorsque la réponse de l'API n'est pas au format attendu. Cela peut en particulier se produire si les données envoyées à celle-ci ne sont pas comprises, par exemple si une chaîne de caractère n'est pas reconnue comme une adresse."""
     pass
 
-class Aucun_Transport_Trouve(Exception):
-    """Erreur levé lorsque les conditions imposées par l'utilisateur ne permettent pas de trouver le moindre trajet possible."""
+class Aucun_Transport_Trouve_Error(Exception):
+    """Erreur levée lorsque les conditions imposées par l'utilisateur ne permettent pas de trouver le moindre trajet possible."""
     pass
 
 
@@ -252,8 +252,15 @@ class Etape_Transit(Etape):
         self._nom_destination = ""
         self._type_transport = ""
         self._nom_transport = ""
+        self._points = None
 
     # Propriétés
+
+    def _get_points(self):
+        return self._points
+    def _set_points(self,points):
+        pass
+    points = property(_get_points,_set_points)
 
     def _get_nom_origine(self):
         return self._nom_origine
@@ -281,14 +288,16 @@ class Etape_Transit(Etape):
 
     # Méthodes
 
-    def _definir_noms(self,nom_origine,nom_destination,type_transport,nom_transport):
+    def _definir_noms(self,nom_origine,nom_destination,type_transport,nom_transport,points=None):
         """Méthode pour définir d'un coup tous les attributs propre à un transport en commun."""
         if (not isinstance(nom_origine,str)) | (not isinstance(nom_destination,str)) | (not isinstance(type_transport,str)) | (not isinstance(nom_transport,str)):
             raise TypeError("les attributs d'un transit attendent le format str")
+        # Ajouter la gestion d'erreur de points dès que le type est connu
         self._nom_origine = nom_origine
         self._nom_destination = nom_destination
         self._type_transport = type_transport
         self._nom_transport = nom_transport
+        self._points = points
 
 
 
@@ -511,17 +520,26 @@ class Choix_Trajet(_Origine_Et_Destination):
 
     def calculer(self):
         """Calcule les trajets possibles d'après les choix de l'utilisateur. Le niveau de charge ainsi que les transports choisis peuvent interdire certains trajets."""
+        transports_avec_erreur = []
         charge_maximale = {"walking": 1, "transit": 2, "velib": 1, "autolib": 3}
         for transport in ["walking","transit","velib","autolib"]:
             if self._transports_possibles[transport] & (self._charge_utilisateur <= charge_maximale[transport]):
                 trajet = Trajet()
                 trajet._definir(self.origine,self.coord_origine,self.destination,self.coord_destination,transport)
-                trajet.calculer()
-                if trajet.etapes != []:
-                    self._trajets_generes[transport] = trajet
+                # Si une erreur survient dans le format de l'API, le trajet en question n'est pas considéré. Cela peut être dû à une adresse invalide de la part de l'utilisateur (ce qui ne devrait pas se produire car l'UI limite les choix de l'utilisateur), auquel cas le problème surviendra pour tous les trajets et conduira à l'erreur Aucun_Transport_Trouve_Error. Sinon cela peut être dû à un problème avec l'API en question (comme c'est le cas au moment où ce commentaire est écrit, l'API ne renvoyant un résultat nul pour les trajets de type transit). Dans ce cas, négliger le trajet problématique permet de poursuivre les calculs sur les trajets encore valides.
+                try:
+                    trajet.calculer()
+                    if trajet.etapes != []:
+                        self._trajets_generes[transport] = trajet
+                except Format_API_Error:
+                    transports_avec_erreur.append(transport)
+
+        # On report le Format_API_Error ici, afin que le traitement ait tout de même lieu sur les autres modes de transports si un seul transport est problématique.
+        if transports_avec_erreur!=[]:
+            raise Format_API_Error
 
         if self._trajets_generes == {"walking":None, "transit":None, "velib":None, "autolib":None}:
-            raise Aucun_Transport_Trouve
+            raise Aucun_Transport_Trouve_Error
 
     def choix(self):
         """Fait le choix du meilleur trajet et retourne le résultat."""
@@ -549,7 +567,7 @@ class Choix_Trajet(_Origine_Et_Destination):
 
         # Si aucun meilleur trajet n'est trouvé, un erreur est renvoyée. Cette erreur étant déjà renvoyée dans la fonction calculer, ce test est présent pour le cas où l'appel à la fonction calculer a été oublié.
         if meilleur_trajet == None:
-            raise Aucun_Transport_Trouve
+            raise Aucun_Transport_Trouve_Error
 
         return meilleur_trajet
 
@@ -567,11 +585,11 @@ class Choix_Trajet(_Origine_Et_Destination):
 
 if __name__ == "__main__":
 
-    origine_test = "CentraleSupelec"
-    destination_test = "Royan"
+    origine_test = "Notre dame de Paris"
+    destination_test = "Musée du louvre"
 
     test = Choix_Trajet()
-    test.entrer_donnees_utilisateur(origine_test,destination_test,True,2,True,True,True,True)
+    test.entrer_donnees_utilisateur(origine_test,destination_test,True,1,True,True,True,True)
     test.calculer()
     result = test.choix()
 
@@ -585,6 +603,7 @@ if __name__ == "__main__":
             print(etape.nom_destination)
             print(etape.type_transport)
             print(etape.nom_transport)
+            print(etape.points)
         print()
 
     os.system('pause')
