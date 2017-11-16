@@ -405,6 +405,7 @@ class Trajet(Etape):
                 # Remplissage de l'objet Etape correspondant
                 etape.coord_destination = coord_destination_etape
                 etape._definir(origine_etape,coord_origine_etape,etape.destination,etape.coord_destination,transport,distance,temps)
+                etape._poly = etape_api['polyline']['points']
                 self._etapes.append(etape)
                 # Préparation pour l'étape suivante
                 origine_etape = etape.destination
@@ -597,12 +598,12 @@ if __name__ == "__main__":
     for etape in result.etapes:
         transport = etape.transport
         print(etape)
+        print(etape.poly)
         if transport=='transit':
             print(etape.nom_origine)
             print(etape.nom_destination)
             print(etape.type_transport)
             print(etape.nom_transport)
-            print(etape.points)
         print()
 
     os.system('pause')
